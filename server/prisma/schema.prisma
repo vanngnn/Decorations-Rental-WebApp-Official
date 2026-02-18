@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum OrderStatus {
+  PAID
+  CANCELLED
+  REFUNDED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+
+  firstName    String
+  lastName     String
+
+  addressLine1 String?
+  city         String?
+  province     String?
+  postalCode   String?
+  country      String?  @default("Canada")
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  orders       Order[]
+
+  @@index([email])
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  priceCents  Int
+
+  category    String
+  colour      String
+  imageUrl    String
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orderItems  OrderItem[]
+
+  @@index([category])
+  @@index([colour])
+  @@index([name])
+}
+
+model Order {
+  id            String      @id @default(cuid())
+
+  // if user checked out logged-in
+  userId        String?
+  user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  // if guest checkout
+  guestEmail    String?
+
+  status        OrderStatus @default(PAID)
+
+  // rental dates (even if you don't enforce availability)
+  startDate     DateTime
+  endDate       DateTime
+
+  // money fields
+  subtotalCents Int
+  taxCents      Int
+  totalCents    Int
+
+  // Stripe fields (optional; safe to include now)
+  stripeCheckoutSessionId String?
+  stripePaymentIntentId   String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  items         OrderItem[]
+
+  @@index([userId])
+  @@index([guestEmail])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id             String @id @default(cuid())
+
+  orderId        String
+  order          Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId      String
+  product        Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  quantity       Int
+  unitPriceCents Int
+
+  @@index([orderId])
+  @@index([productId])
+}
